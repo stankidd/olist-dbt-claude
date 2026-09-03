@@ -17,7 +17,8 @@ models:
         description: "Order lifecycle status."
         tests:
           - accepted_values:
-              values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+              arguments:
+                values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
       - name: order_purchase_timestamp
         description: "Timestamp the order was placed. Never null."
         tests:
@@ -84,7 +85,8 @@ models:
         description: "Payment method used."
         tests:
           - accepted_values:
-              values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+              arguments:
+                values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
       - name: payment_installments
         description: "Number of installments. 0 to 24; 0 occurs only on credit_card."
       - name: payment_value
@@ -110,8 +112,9 @@ models:
         description: "Star rating, 1 to 5."
         tests:
           - accepted_values:
-              values: [1, 2, 3, 4, 5]
-              quote: false
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
       - name: review_comment_title
         description: "Free-text review title. Nullable."
       - name: review_comment_message

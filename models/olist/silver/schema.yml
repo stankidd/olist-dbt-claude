@@ -1,0 +1,249 @@
+version: 2
+
+models:
+  - name: silver_orders
+    description: "Order header enriched with customer identity, payment summary, and delivery performance. All statuses retained for funnel analysis."
+    columns:
+      - name: order_id
+        description: "Unique order identifier."
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('bronze_orders')
+                field: order_id
+      - name: customer_id
+        description: "Foreign key to bronze_customers."
+        tests:
+          - not_null
+      - name: customer_unique_id
+        description: "Identifies the person across orders."
+        tests:
+          - not_null
+      - name: customer_zip_code_prefix
+        description: "Customer's 5-character zip code prefix."
+      - name: customer_city
+        description: "Customer city."
+      - name: customer_state
+        description: "2-letter Brazilian state code."
+        tests:
+          - not_null
+      - name: order_status
+        description: "Order lifecycle status."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+      - name: order_purchase_timestamp
+        description: "Timestamp the order was placed."
+      - name: order_approved_at
+        description: "Timestamp the order was approved."
+      - name: order_delivered_carrier_date
+        description: "Timestamp the order was handed to the carrier."
+      - name: order_delivered_customer_date
+        description: "Timestamp the order was delivered to the customer."
+      - name: order_estimated_delivery_date
+        description: "Estimated delivery date shown to the customer at purchase."
+      - name: payment_type
+        description: "Modal payment type for the order, from int_order_payments."
+      - name: payment_installments
+        description: "Max installment count across the order's payments."
+      - name: total_payment_value
+        description: "Total amount paid across all payment rows for the order."
+      - name: payment_count
+        description: "Number of payment rows for the order."
+      - name: is_delivered
+        description: "True when order_status = 'delivered'. The BRD's valid-order rule for revenue metrics."
+        tests:
+          - not_null
+      - name: order_purchase_date
+        description: "order_purchase_timestamp cast to DATE for reporting convenience."
+      - name: order_purchase_month
+        description: "order_purchase_timestamp truncated to month, for cohorting."
+      - name: delivery_days
+        description: "Days from purchase to delivery. NULL when not yet delivered."
+      - name: estimated_delivery_days
+        description: "Days from purchase to the estimated delivery date."
+      - name: delivery_delay_days
+        description: "delivery_days minus estimated_delivery_days. Positive means late. NULL when not delivered."
+      - name: is_on_time
+        description: "True when delivered on or before the estimated date. NULL when not delivered."
+      - name: is_late_delivery
+        description: "True when delivered after the estimated date. NULL when not delivered."
+
+  - name: silver_order_items
+    description: "Order line items with GMV, English product category, and seller/customer/order context so gold can filter to delivered without a second join."
+    columns:
+      - name: order_item_key
+        description: "Surrogate key of (order_id, order_item_id)."
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to bronze_orders."
+        tests:
+          - not_null
+      - name: order_item_id
+        description: "1-based sequence of the line item within its order."
+      - name: product_id
+        description: "Foreign key to bronze_products."
+        tests:
+          - not_null
+      - name: seller_id
+        description: "Foreign key to bronze_sellers."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('bronze_sellers')
+                field: seller_id
+      - name: seller_state
+        description: "Seller's 2-letter state code."
+      - name: customer_id
+        description: "Foreign key to bronze_customers, via the parent order."
+      - name: customer_unique_id
+        description: "Identifies the person across orders."
+        tests:
+          - not_null
+      - name: customer_state
+        description: "Customer's 2-letter state code."
+      - name: order_status
+        description: "Status of the parent order."
+      - name: order_purchase_timestamp
+        description: "Timestamp the parent order was placed."
+      - name: order_delivered_customer_date
+        description: "Timestamp the parent order was delivered."
+      - name: order_estimated_delivery_date
+        description: "Estimated delivery date of the parent order."
+      - name: shipping_limit_date
+        description: "Deadline for the seller to hand the item to the carrier."
+      - name: price
+        description: "Item price."
+      - name: freight_value
+        description: "Freight cost for the item."
+      - name: product_category_name
+        description: "Portuguese product category name, kept for traceability."
+      - name: is_first_item
+        description: "True when order_item_id = 1. Used for the BRD's order-level 'first item' attribution rule."
+      - name: is_delivered
+        description: "True when the parent order's status is 'delivered'."
+      - name: gmv
+        description: "price + freight_value. The BRD's GMV calculation."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: product_category
+        description: "English category name, falling back to the Portuguese name, then 'unknown' if neither is available."
+        tests:
+          - not_null
+
+  - name: silver_customers
+    description: "Customer records with deduplicated coordinates. One row per customer_id (per-order grain); gold rolls this up to the person via customer_unique_id."
+    columns:
+      - name: customer_id
+        description: "Customer identifier scoped to one order."
+        tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: "Identifies the person across orders."
+        tests:
+          - not_null
+      - name: customer_zip_code_prefix
+        description: "5-character zip code prefix."
+      - name: customer_city
+        description: "Customer city."
+      - name: customer_state
+        description: "2-letter Brazilian state code."
+        tests:
+          - not_null
+      - name: latitude
+        description: "Deduplicated latitude for the customer's zip. NULL for 278 unmatched zips."
+      - name: longitude
+        description: "Deduplicated longitude for the customer's zip. NULL for 278 unmatched zips."
+      - name: has_geolocation
+        description: "True when the customer's zip matched a geolocation record."
+
+  - name: silver_sellers
+    description: "Seller records with deduplicated coordinates. One row per seller."
+    columns:
+      - name: seller_id
+        description: "Unique seller identifier."
+        tests:
+          - unique
+          - not_null
+      - name: seller_zip_code_prefix
+        description: "5-character zip code prefix."
+      - name: seller_city
+        description: "Seller city."
+      - name: seller_state
+        description: "2-letter Brazilian state code."
+        tests:
+          - not_null
+      - name: latitude
+        description: "Deduplicated latitude for the seller's zip. NULL for 7 unmatched zips."
+      - name: longitude
+        description: "Deduplicated longitude for the seller's zip. NULL for 7 unmatched zips."
+      - name: has_geolocation
+        description: "True when the seller's zip matched a geolocation record."
+
+  - name: silver_order_reviews
+    description: "Reviews with sentiment classification and the delivery context of the order they rate. One row per review-order pair."
+    columns:
+      - name: review_order_key
+        description: "Surrogate key of (review_id, order_id). review_id alone has 789 duplicates across orders."
+        tests:
+          - unique
+          - not_null
+      - name: review_id
+        description: "Review identifier. NOT unique on its own."
+        tests:
+          - not_null
+      - name: order_id
+        description: "Foreign key to bronze_orders."
+        tests:
+          - not_null
+      - name: customer_id
+        description: "Foreign key to bronze_customers, via the parent order."
+        tests:
+          - not_null
+      - name: order_status
+        description: "Status of the parent order."
+      - name: review_score
+        description: "Star rating, 1 to 5."
+        tests:
+          - not_null
+      - name: review_comment_title
+        description: "Free-text review title. Nullable."
+      - name: review_comment_message
+        description: "Free-text review body. Nullable."
+      - name: review_creation_date
+        description: "Timestamp the review was created."
+      - name: review_answer_timestamp
+        description: "Timestamp the seller/marketplace responded to the review."
+      - name: sentiment_bucket
+        description: "Negative for scores 1-2, Neutral for 3, Positive for 4-5. BRD sentiment rule."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Negative', 'Neutral', 'Positive']
+      - name: has_comment
+        description: "True when review_comment_message is non-blank after trimming. Treats 9 empty-string rows the same as NULL."
+      - name: has_title
+        description: "True when review_comment_title is non-blank after trimming."
+      - name: response_time_days
+        description: "Days between review creation and the answer timestamp."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: delivery_delay_days
+        description: "Delivery delay of the order this review is attached to. Same expression as silver_orders."
+      - name: is_late_delivery
+        description: "True when the order this review is attached to was delivered after its estimated date."
+      - name: review_sequence
+        description: "1-based sequence of this review within its order, ordered by creation then answer timestamp then review_id. Lets consumers pick one review per order."
