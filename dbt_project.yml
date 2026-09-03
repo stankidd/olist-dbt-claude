@@ -1,0 +1,32 @@
+name: olist_dbt
+version: '1.0.0'
+config-version: 2
+profile: 'olist'
+
+model-paths: ['models']
+analysis-paths: ['analyses']
+test-paths: ['tests']
+seed-paths: ['seeds']
+macro-paths: ['macros']
+snapshot-paths: ['snapshots']
+
+target-path: 'target'
+clean-targets:
+  - 'target'
+  - 'dbt_packages'
+
+models:
+  olist_dbt:
+    olist:
+      bronze:
+        +materialized: view
+        +tags: ['bronze', 'olist']
+        +schema: olist_bronze
+      silver:
+        +materialized: table
+        +tags: ['silver', 'olist']
+        +schema: olist_silver
+      gold:
+        +materialized: table
+        +tags: ['gold', 'olist']
+        +schema: olist_gold
