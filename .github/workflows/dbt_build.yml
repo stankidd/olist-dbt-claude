@@ -22,13 +22,9 @@ jobs:
       - name: Install dependencies
         run: pip install dbt-core dbt-duckdb duckdb kaggle
 
-      - name: Configure Kaggle token
-        run: |
-          mkdir -p ~/.kaggle
-          echo -n '${{ secrets.KAGGLE_API_TOKEN }}' > ~/.kaggle/access_token
-          chmod 600 ~/.kaggle/access_token
-
       - name: Load data into DuckDB
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: python scripts/load_data.py
 
       - name: Install dbt packages
