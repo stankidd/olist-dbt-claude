@@ -165,21 +165,87 @@ Expected result: 20 models, 121 tests, a clean build in well under a minute.
 
 ## Architecture
 
-```
-data/olist.duckdb (raw schema — 9 source tables)
-        |
-        v
-  Bronze (9 views) ──────── parse & rename, no business logic
-        |
-        v
-  Intermediate (2 tables) ── geolocation dedup, payment resolution
-        |
-        v
-  Silver (5 tables) ──────── join, enrich, apply business rules
-        |
-        v
-  Gold / Marts (4 tables) ── mart_orders, mart_customers,
-                             mart_sellers, mart_reviews
+```mermaid
+graph LR
+    S1[(orders)]:::src
+    S2[(order_items)]:::src
+    S3[(order_payments)]:::src
+    S4[(order_reviews)]:::src
+    S5[(customers)]:::src
+    S6[(sellers)]:::src
+    S7[(products)]:::src
+    S8[(geolocation)]:::src
+    S9[(category<br/>translation)]:::src
+
+    B1[bronze_orders]:::bronze
+    B2[bronze_order_items]:::bronze
+    B3[bronze_order_payments]:::bronze
+    B4[bronze_order_reviews]:::bronze
+    B5[bronze_customers]:::bronze
+    B6[bronze_sellers]:::bronze
+    B7[bronze_products]:::bronze
+    B8[bronze_geolocation]:::bronze
+    B9[bronze_category<br/>translation]:::bronze
+
+    I1[int_geolocation<br/>deduped]:::inter
+    I2[int_order_payments]:::inter
+
+    SV1[silver_orders]:::silver
+    SV2[silver_order_items]:::silver
+    SV3[silver_customers]:::silver
+    SV4[silver_sellers]:::silver
+    SV5[silver_order_reviews]:::silver
+
+    G1[mart_orders]:::gold
+    G2[mart_customers]:::gold
+    G3[mart_sellers]:::gold
+    G4[mart_reviews]:::gold
+
+    S1-->B1
+    S2-->B2
+    S3-->B3
+    S4-->B4
+    S5-->B5
+    S6-->B6
+    S7-->B7
+    S8-->B8
+    S9-->B9
+
+    B8-->I1
+    B3-->I2
+
+    B1-->SV1
+    B2-->SV2
+    B7-->SV2
+    B9-->SV2
+    B6-->SV2
+    B5-->SV3
+    I1-->SV3
+    B6-->SV4
+    I1-->SV4
+    B4-->SV5
+
+    SV1-->G1
+    SV2-->G1
+    I2-->G1
+
+    SV1-->G2
+    SV2-->G2
+    SV5-->G2
+
+    SV2-->G3
+    SV4-->G3
+    SV5-->G3
+
+    SV1-->G4
+    SV2-->G4
+    SV5-->G4
+
+    classDef src fill:#eeeeee,stroke:#999,color:#333
+    classDef bronze fill:#fdebd0,stroke:#e67e22,color:#333
+    classDef inter fill:#f0e6f6,stroke:#8e44ad,color:#333
+    classDef silver fill:#d6eaf8,stroke:#2980b9,color:#333
+    classDef gold fill:#d5f5e3,stroke:#27ae60,color:#333
 ```
 
 ---
