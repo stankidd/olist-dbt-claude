@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: olist_raw
+    description: "Olist Brazilian e-commerce raw tables loaded from Kaggle CSVs into DuckDB"
+    schema: raw
+    tables:
+      - name: orders
+        description: "One row per order. Order header with lifecycle timestamps and status."
+      - name: order_items
+        description: "One row per order line item. Product, seller, price, and freight per line."
+      - name: order_payments
+        description: "One row per payment record. An order can have multiple payment rows."
+      - name: order_reviews
+        description: "One row per review-order pair. review_id alone is not unique."
+      - name: customers
+        description: "One row per order-scoped customer record. customer_id is issued per order."
+      - name: sellers
+        description: "One row per seller."
+      - name: products
+        description: "One row per product. Category, dimensions, and weight."
+      - name: geolocation
+        description: "One row per zip code observation. Not unique per zip; needs dedup before joining."
+      - name: product_category_name_translation
+        description: "One row per product category. Portuguese to English name mapping."

@@ -72,6 +72,18 @@ Use case: Channel x plant x brand performance management across 9 business funct
 Models: models/champion_homes/bronze|silver|gold (structure ready, build pending)
 Project docs: .claude/project_docs/client-champion_homes/
 
+### olist — Brazilian E-Commerce Order Analytics
+Source: DuckDB local file at data/olist.duckdb, raw schema (not Snowflake)
+Profile: olist (type duckdb) — see profiles.yml
+Tables: orders, order_items, order_payments, order_reviews, customers, sellers, products, geolocation, product_category_name_translation
+Scale: ~100k orders (2016-2018), 1M geolocation rows — public Kaggle dataset
+Use case: Order funnel, customer LTV, seller performance, review sentiment
+Models: models/olist/bronze|silver|gold — 20 models total (9 bronze, 2 intermediate, 5 silver, 4 gold)
+Project docs: .claude/project_docs/client-olist/
+Tech spec: .claude/project_docs/client-olist/04-specs/documents/olist-tech-spec.md
+Note: Public portfolio artifact — no cloud accounts required, runs entirely local
+Note: Use dbt.datediff() and other portable dbt_utils/dbt macros, not raw DATEDIFF, so models compile unchanged if ever ported to Snowflake
+
 ## Schema Naming
 Dev schemas use MAMMOTH_SCHEMA_ prefix (e.g. MAMMOTH_SCHEMA_tpch_sf10_bronze)
 Prod schemas use clean names (e.g. TPCH_SF10_BRONZE) via generate_schema_name macro

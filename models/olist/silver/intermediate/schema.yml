@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: int_geolocation_deduped
+    description: "Geolocation collapsed to one deterministic coordinate per zip_code_prefix so downstream joins cannot fan out."
+    columns:
+      - name: zip_code_prefix
+        description: "5-character zip code prefix. Deduplication key."
+        tests:
+          - unique
+          - not_null
+      - name: latitude
+        description: "Latitude of the kept observation for this zip."
+      - name: longitude
+        description: "Longitude of the kept observation for this zip."
+      - name: city
+        description: "City of the kept observation for this zip."
+      - name: state
+        description: "State of the kept observation for this zip."
+      - name: observation_count
+        description: "Number of raw geolocation rows collapsed into this one, kept for transparency."
+
+  - name: int_order_payments
+    description: "Payments resolved to order grain: modal payment type (tie-broken by summed value then alphabetically), max installments, and totals."
+    columns:
+      - name: order_id
+        description: "Foreign key to bronze_orders. One row per order with at least one payment."
+        tests:
+          - unique
+          - not_null
+      - name: payment_type
+        description: "Modal payment type for the order."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: payment_installments
+        description: "MAX(payment_installments) across the order's payment rows."
+      - name: total_payment_value
+        description: "SUM(payment_value) across the order's payment rows."
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: payment_count
+        description: "Number of payment rows for the order."
+      - name: payment_type_count
+        description: "Number of distinct payment types used on the order."
