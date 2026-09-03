@@ -1,0 +1,218 @@
+version: 2
+
+models:
+  - name: bronze_orders
+    description: "Typed order header with lifecycle timestamps. One row per order."
+    columns:
+      - name: order_id
+        description: "Unique order identifier."
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to bronze_customers."
+        tests:
+          - not_null
+      - name: order_status
+        description: "Order lifecycle status."
+        tests:
+          - accepted_values:
+              values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+      - name: order_purchase_timestamp
+        description: "Timestamp the order was placed. Never null."
+        tests:
+          - not_null
+      - name: order_approved_at
+        description: "Timestamp the order was approved. Null on 160 rows."
+      - name: order_delivered_carrier_date
+        description: "Timestamp the order was handed to the carrier. Nullable."
+      - name: order_delivered_customer_date
+        description: "Timestamp the order was delivered to the customer. Null on 8 delivered orders."
+      - name: order_estimated_delivery_date
+        description: "Estimated delivery date shown to the customer at purchase. Never null."
+        tests:
+          - not_null
+
+  - name: bronze_order_items
+    description: "Typed order line items with a technical composite key. One row per order line item."
+    columns:
+      - name: order_item_key
+        description: "Surrogate key of (order_id, order_item_id)."
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to bronze_orders."
+        tests:
+          - not_null
+      - name: order_item_id
+        description: "1-based sequence of the line item within its order. Max 21."
+      - name: product_id
+        description: "Foreign key to bronze_products."
+        tests:
+          - not_null
+      - name: seller_id
+        description: "Foreign key to bronze_sellers."
+        tests:
+          - not_null
+      - name: shipping_limit_date
+        description: "Deadline for the seller to hand the item to the carrier."
+      - name: price
+        description: "Item price. 0.85 to 6,735.00."
+        tests:
+          - not_null
+      - name: freight_value
+        description: "Freight cost for the item. Always >= 0."
+        tests:
+          - not_null
+
+  - name: bronze_order_payments
+    description: "Typed payment rows. One row per payment record; an order can have multiple."
+    columns:
+      - name: order_payment_key
+        description: "Surrogate key of (order_id, payment_sequential)."
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to bronze_orders."
+        tests:
+          - not_null
+      - name: payment_sequential
+        description: "1-based sequence of the payment within its order. 1 to 29."
+      - name: payment_type
+        description: "Payment method used."
+        tests:
+          - accepted_values:
+              values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: payment_installments
+        description: "Number of installments. 0 to 24; 0 occurs only on credit_card."
+      - name: payment_value
+        description: "Amount paid on this payment record. Always >= 0."
+
+  - name: bronze_order_reviews
+    description: "Typed reviews with a technical key, because review_id alone is not unique. One row per review-order pair."
+    columns:
+      - name: review_order_key
+        description: "Surrogate key of (review_id, order_id). review_id alone has 789 duplicates across orders."
+        tests:
+          - unique
+          - not_null
+      - name: review_id
+        description: "Review identifier. NOT unique on its own (98,410 distinct of 99,224 rows)."
+        tests:
+          - not_null
+      - name: order_id
+        description: "Foreign key to bronze_orders."
+        tests:
+          - not_null
+      - name: review_score
+        description: "Star rating, 1 to 5."
+        tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false
+      - name: review_comment_title
+        description: "Free-text review title. Nullable."
+      - name: review_comment_message
+        description: "Free-text review body. Nullable; 9 rows hold an empty string rather than NULL."
+      - name: review_creation_date
+        description: "Timestamp the review was created."
+      - name: review_answer_timestamp
+        description: "Timestamp the seller/marketplace responded to the review."
+
+  - name: bronze_customers
+    description: "Typed customer rows, keeping the per-order id and the person id side by side. One row per order-scoped customer record."
+    columns:
+      - name: customer_id
+        description: "Customer identifier scoped to one order. One per order, not one per person."
+        tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: "Identifies the person across orders. 96,096 distinct values."
+        tests:
+          - not_null
+      - name: customer_zip_code_prefix
+        description: "5-character zip code prefix, kept as text to preserve leading zeros."
+      - name: customer_city
+        description: "Customer city."
+      - name: customer_state
+        description: "2-letter Brazilian state code."
+        tests:
+          - not_null
+
+  - name: bronze_sellers
+    description: "Typed seller rows. One row per seller."
+    columns:
+      - name: seller_id
+        description: "Unique seller identifier."
+        tests:
+          - unique
+          - not_null
+      - name: seller_zip_code_prefix
+        description: "5-character zip code prefix, kept as text."
+      - name: seller_city
+        description: "Seller city."
+      - name: seller_state
+        description: "2-letter Brazilian state code."
+        tests:
+          - not_null
+
+  - name: bronze_products
+    description: "Typed product catalog; corrects source column-name misspellings. One row per product."
+    columns:
+      - name: product_id
+        description: "Unique product identifier."
+        tests:
+          - unique
+          - not_null
+      - name: product_category_name
+        description: "Portuguese product category name. Null on 610 rows."
+      - name: product_name_length
+        description: "Character length of the product name. Source column name typo (lenght) corrected."
+      - name: product_description_length
+        description: "Character length of the product description. Source column name typo (lenght) corrected."
+      - name: product_photos_qty
+        description: "Number of photos on the product listing."
+      - name: product_weight_g
+        description: "Product weight in grams."
+      - name: product_length_cm
+        description: "Product length in centimeters."
+      - name: product_height_cm
+        description: "Product height in centimeters."
+      - name: product_width_cm
+        description: "Product width in centimeters."
+
+  - name: bronze_geolocation
+    description: "Typed pass-through of raw geolocation observations. One row per zip observation; not unique per zip. Dedup happens in the intermediate layer."
+    columns:
+      - name: zip_code_prefix
+        description: "5-character zip code prefix. Not unique in this model; up to 1,146 rows per zip."
+        tests:
+          - not_null
+      - name: latitude
+        description: "Observed latitude. Never null."
+        tests:
+          - not_null
+      - name: longitude
+        description: "Observed longitude. Never null."
+        tests:
+          - not_null
+      - name: city
+        description: "Observed city name."
+      - name: state
+        description: "2-letter Brazilian state code. 27 codes present."
+
+  - name: bronze_product_category_translation
+    description: "Portuguese to English product category name mapping. One row per category."
+    columns:
+      - name: product_category_name
+        description: "Portuguese category name. Primary key."
+        tests:
+          - unique
+          - not_null
+      - name: product_category_name_english
+        description: "English translation of the category name."
+        tests:
+          - not_null
