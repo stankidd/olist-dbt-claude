@@ -206,6 +206,15 @@ models:
               arguments:
                 values: ['Gold', 'Silver', 'Bronze']
 
+  - name: metricflow_time_spine
+    description: "One row per calendar day, 2016-01-01 through 2020-12-31. Required by MetricFlow for the semantic layer's time dimensions (order_date, first_order_date, review_creation_date); not a business mart."
+    columns:
+      - name: date_day
+        description: "Calendar date."
+        tests:
+          - unique
+          - not_null
+
   - name: mart_reviews
     description: "Review sentiment with the product and delivery context needed to explain it. Informs seller coaching and logistics escalations."
     columns:

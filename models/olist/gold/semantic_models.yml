@@ -1,0 +1,177 @@
+version: 2
+
+semantic_models:
+  - name: sem_orders
+    description: "One row per delivered order. Grain and measures are governed definitions over mart_orders."
+    model: ref('mart_orders')
+    defaults:
+      agg_time_dimension: order_date
+
+    entities:
+      - name: order_id
+        type: primary
+        expr: order_id
+      - name: customer_unique_id
+        type: foreign
+        expr: customer_unique_id
+      - name: seller_id
+        type: foreign
+        expr: seller_id
+
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: order_purchase_date
+      - name: customer_state
+        type: categorical
+        expr: customer_state
+      - name: seller_state
+        type: categorical
+        expr: seller_state
+      - name: is_on_time
+        type: categorical
+        expr: is_on_time
+
+    measures:
+      - name: total_gmv
+        description: "SUM of total_gmv across delivered orders."
+        agg: sum
+        expr: total_gmv
+      - name: order_count
+        description: "COUNT of delivered orders."
+        agg: count
+        expr: order_id
+      - name: total_items
+        description: "SUM of line items across delivered orders."
+        agg: sum
+        expr: total_items
+      - name: on_time_orders
+        description: "Count of delivered orders where is_on_time is true. Powers on_time_delivery_rate; not an explicit sem_orders measure in the spec table but required to express the on_time_delivery_rate ratio."
+        agg: sum
+        expr: CASE WHEN is_on_time THEN 1 ELSE 0 END
+
+  - name: sem_customers
+    description: "One row per person (customer_unique_id). Grain and measures are governed definitions over mart_customers."
+    model: ref('mart_customers')
+    defaults:
+      agg_time_dimension: first_order_date
+
+    entities:
+      - name: customer_unique_id
+        type: primary
+        expr: customer_unique_id
+
+    dimensions:
+      - name: customer_state
+        type: categorical
+        expr: customer_state
+      - name: is_repeat_customer
+        type: categorical
+        expr: is_repeat_customer
+      - name: first_order_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: first_order_date
+
+    measures:
+      - name: customer_count
+        description: "COUNT of distinct people."
+        agg: count
+        expr: customer_unique_id
+      - name: repeat_customer_count
+        description: "Count of people with is_repeat_customer true."
+        agg: sum
+        expr: CASE WHEN is_repeat_customer THEN 1 ELSE 0 END
+      - name: total_customer_spend
+        description: "SUM of total_spend across people."
+        agg: sum
+        expr: total_spend
+
+  - name: sem_sellers
+    description: "One row per seller. Grain and measures are governed definitions over mart_sellers."
+    model: ref('mart_sellers')
+    defaults:
+      agg_time_dimension: parse_time_placeholder
+
+    entities:
+      - name: seller_id
+        type: primary
+        expr: seller_id
+
+    dimensions:
+      - name: seller_state
+        type: categorical
+        expr: seller_state
+      - name: seller_tier
+        type: categorical
+        expr: seller_tier
+      - name: parse_time_placeholder
+        type: time
+        type_params:
+          time_granularity: day
+        expr: "CAST('2018-01-01' AS DATE)"
+        # mart_sellers has no date column (no new mart/model change allowed by spec).
+        # MetricFlow requires every semantic model with measures to declare an
+        # aggregation time dimension, so this constant satisfies that parse-time
+        # requirement. It carries no business meaning and semantic_loader.py
+        # excludes it from the MCP server's governed dimension catalog.
+
+    measures:
+      - name: seller_count
+        description: "COUNT of sellers."
+        agg: count
+        expr: seller_id
+      - name: seller_gmv
+        description: "SUM of total_gmv across sellers."
+        agg: sum
+        expr: total_gmv
+      - name: avg_seller_review
+        description: "AVG of avg_review_score across sellers."
+        agg: average
+        expr: avg_review_score
+
+  - name: sem_reviews
+    description: "One row per (review_id, order_id) pair — mart_reviews' documented grain (review_order_key), not review_id alone, which repeats across orders. Grain and measures are governed definitions over mart_reviews."
+    model: ref('mart_reviews')
+    defaults:
+      agg_time_dimension: review_creation_date
+
+    entities:
+      - name: review_order_key
+        type: primary
+        expr: review_order_key
+      - name: order_id
+        type: foreign
+        expr: order_id
+      - name: seller_id
+        type: foreign
+        expr: seller_id
+
+    dimensions:
+      - name: review_creation_date
+        type: time
+        type_params:
+          time_granularity: day
+        expr: review_creation_date
+      - name: sentiment_bucket
+        type: categorical
+        expr: sentiment_bucket
+      - name: product_category
+        type: categorical
+        expr: product_category
+      - name: is_late_delivery
+        type: categorical
+        expr: is_late_delivery
+
+    measures:
+      - name: review_count
+        description: "COUNT of reviews."
+        agg: count
+        expr: review_id
+      - name: avg_review_score
+        description: "AVG of review_score."
+        agg: average
+        expr: review_score

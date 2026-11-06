@@ -163,6 +163,47 @@ Expected result: 20 models, 121 tests, a clean build in well under a minute.
 
 ---
 
+## Semantic Layer
+
+On top of the four gold marts, this repo adds a small governed semantic
+layer — two deliverables, both built the same spec-first, gated way as
+everything else:
+
+1. **Metrics defined once**, in MetricFlow-style dbt YAML
+   ([`models/olist/gold/semantic_models.yml`](models/olist/gold/semantic_models.yml),
+   [`metrics.yml`](models/olist/gold/metrics.yml)). This is standard dbt —
+   `dbt parse` validates it, and the same definitions would move unchanged
+   to the dbt Semantic Layer on Snowflake or BigQuery.
+2. **Served locally** through a custom MCP server
+   ([`semantic_layer/`](semantic_layer/)) that reads those definitions and
+   answers metric questions against `data/olist.duckdb` — no cloud account,
+   no dbt Semantic Layer subscription, just `uv run semantic_layer/server.py`.
+
+**The guardrail:** the server answers only from governed definitions. An LLM
+picks a metric name, optional dimensions, and optional filter values; the
+server's `query_builder.py` is the only thing that assembles SQL, built
+exclusively from the YAML catalog, and it rejects any metric or dimension
+that isn't in it. It never runs model-authored SQL.
+
+**Example questions, mapped to governed queries:**
+
+| Question | Governed query |
+|---|---|
+| "What's our total GMV?" | `query_metric("total_gmv")` |
+| "Break down GMV by customer state" | `query_metric("total_gmv", group_by=["customer_state"])` |
+| "How many orders came from Gold-tier sellers?" | `query_metric("order_count", filters=[{"dimension": "seller_tier", "op": "=", "value": "Gold"}])` |
+| "What share of customers are repeat buyers?" | `query_metric("repeat_customer_rate")` |
+
+Reconciliation is exact: `query_metric('total_gmv')` through the MCP server
+returns the same number as `SELECT SUM(total_gmv) FROM mart_orders` run
+directly against the mart — the semantic layer adds no drift.
+
+See [`semantic_layer/README.md`](semantic_layer/README.md) for how to run
+the server, the full tool list, and the `.mcp.json` snippet to connect a
+client.
+
+---
+
 ## Architecture
 
 ```mermaid

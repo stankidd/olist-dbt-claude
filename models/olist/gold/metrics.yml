@@ -1,0 +1,129 @@
+version: 2
+
+metrics:
+  - name: total_gmv
+    label: "Total GMV"
+    description: "Total gross merchandise value across delivered orders."
+    type: simple
+    type_params:
+      measure: total_gmv
+
+  - name: order_count
+    label: "Order Count"
+    description: "Count of delivered orders."
+    type: simple
+    type_params:
+      measure: order_count
+
+  # Ratio-component metrics below are not part of the 11 governed, business-facing
+  # metrics in the spec table. MetricFlow's `ratio` type resolves its numerator/
+  # denominator by metric name, not raw measure name, so each measure used only
+  # inside a ratio needs a thin simple-metric wrapper. semantic_loader.py filters
+  # these out of the catalog the MCP server exposes.
+  - name: total_items
+    label: "Total Items (component)"
+    description: "Ratio-component metric wrapping the total_items measure for avg_items_per_order."
+    type: simple
+    type_params:
+      measure: total_items
+    config:
+      meta:
+        component: true
+
+  - name: on_time_orders
+    label: "On-Time Orders (component)"
+    description: "Ratio-component metric wrapping the on_time_orders measure for on_time_delivery_rate."
+    type: simple
+    type_params:
+      measure: on_time_orders
+    config:
+      meta:
+        component: true
+
+  - name: repeat_customer_count
+    label: "Repeat Customer Count (component)"
+    description: "Ratio-component metric wrapping the repeat_customer_count measure for repeat_customer_rate."
+    type: simple
+    type_params:
+      measure: repeat_customer_count
+    config:
+      meta:
+        component: true
+
+  - name: total_customer_spend
+    label: "Total Customer Spend (component)"
+    description: "Ratio-component metric wrapping the total_customer_spend measure for avg_customer_ltv."
+    type: simple
+    type_params:
+      measure: total_customer_spend
+    config:
+      meta:
+        component: true
+
+  - name: avg_order_value
+    label: "Average Order Value"
+    description: "Total GMV divided by order count."
+    type: ratio
+    type_params:
+      numerator: total_gmv
+      denominator: order_count
+
+  - name: avg_items_per_order
+    label: "Average Items Per Order"
+    description: "Total items divided by order count."
+    type: ratio
+    type_params:
+      numerator: total_items
+      denominator: order_count
+
+  - name: on_time_delivery_rate
+    label: "On-Time Delivery Rate"
+    description: "Share of delivered orders that arrived on or before the estimated date."
+    type: ratio
+    type_params:
+      numerator: on_time_orders
+      denominator: order_count
+
+  - name: customer_count
+    label: "Customer Count"
+    description: "Count of distinct people (customer_unique_id)."
+    type: simple
+    type_params:
+      measure: customer_count
+
+  - name: repeat_customer_rate
+    label: "Repeat Customer Rate"
+    description: "Share of people with more than one order."
+    type: ratio
+    type_params:
+      numerator: repeat_customer_count
+      denominator: customer_count
+
+  - name: avg_customer_ltv
+    label: "Average Customer LTV"
+    description: "Total customer spend divided by customer count."
+    type: ratio
+    type_params:
+      numerator: total_customer_spend
+      denominator: customer_count
+
+  - name: avg_review_score
+    label: "Average Review Score"
+    description: "Average star rating across reviews."
+    type: simple
+    type_params:
+      measure: avg_review_score
+
+  - name: seller_count
+    label: "Seller Count"
+    description: "Count of sellers."
+    type: simple
+    type_params:
+      measure: seller_count
+
+  - name: avg_seller_review
+    label: "Average Seller Review"
+    description: "Average of each seller's average review score."
+    type: simple
+    type_params:
+      measure: avg_seller_review
