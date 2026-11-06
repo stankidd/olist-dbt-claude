@@ -202,6 +202,31 @@ See [`semantic_layer/README.md`](semantic_layer/README.md) for how to run
 the server, the full tool list, and the `.mcp.json` snippet to connect a
 client.
 
+### Semantic Layer in action
+
+**Question:**
+
+![Semantic layer question](docs/semantic-layer-question.png)
+
+**Governed answer:**
+
+Average order value overall: **R$159.83** across 96,478 delivered orders.
+
+| State | Orders | Avg Order Value |
+|---|---|---|
+| SP | 40,501 | R$142.46 |
+| RJ | 12,350 | R$166.43 |
+| MG | 11,354 | R$160.20 |
+| RS | 5,345 | R$161.17 |
+| PR | 4,923 | R$158.79 |
+
+This answer was routed through `query_metric` against the governed
+`avg_order_value` metric — no raw SQL was written by the model.
+
+**Insight:** SP dominates order volume but posts a below-average AOV, while
+smaller, more remote states price higher, likely reflecting shipping costs
+baked into the order total.
+
 ---
 
 ## Architecture
